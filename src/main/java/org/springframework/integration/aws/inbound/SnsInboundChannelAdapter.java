@@ -40,10 +40,10 @@ import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
 import org.springframework.web.multipart.MultipartResolver;
 
-import com.amazonaws.services.sns.AmazonSNS;
 import com.fasterxml.jackson.databind.JsonNode;
-import io.awspring.cloud.messaging.endpoint.NotificationStatus;
-import io.awspring.cloud.messaging.endpoint.NotificationStatusHandlerMethodArgumentResolver;
+import io.awspring.cloud.sns.handlers.NotificationStatus;
+import io.awspring.cloud.sns.handlers.NotificationStatusHandlerMethodArgumentResolver;
+import software.amazon.awssdk.services.sns.SnsClient;
 
 /**
  * The {@link HttpRequestHandlingMessagingGateway} extension for the Amazon WS SNS HTTP(S)
@@ -85,7 +85,7 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 
 	private EvaluationContext evaluationContext;
 
-	public SnsInboundChannelAdapter(AmazonSNS amazonSns, String... path) {
+	public SnsInboundChannelAdapter(SnsClient amazonSns, String... path) {
 		super(false);
 		Assert.notNull(amazonSns, "'amazonSns' must not be null.");
 		Assert.notNull(path, "'path' must not be null.");
@@ -207,7 +207,7 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 
 	private static class NotificationStatusResolver extends NotificationStatusHandlerMethodArgumentResolver {
 
-		NotificationStatusResolver(AmazonSNS amazonSns) {
+		NotificationStatusResolver(SnsClient amazonSns) {
 			super(amazonSns);
 		}
 

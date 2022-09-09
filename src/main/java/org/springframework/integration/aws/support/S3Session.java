@@ -39,7 +39,6 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
  * An Amazon S3 {@link Session} implementation.
@@ -53,16 +52,9 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	private final AmazonS3 amazonS3;
 
-	private final ResourceIdResolver resourceIdResolver;
-
 	private String endpoint;
 
 	public S3Session(AmazonS3 amazonS3) {
-		this(amazonS3, null);
-	}
-
-	public S3Session(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
-		this.resourceIdResolver = resourceIdResolver;
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
 		this.amazonS3 = amazonS3;
 	}
@@ -98,12 +90,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 	}
 
 	private String resolveBucket(String bucket) {
-		if (this.resourceIdResolver != null) {
-			return this.resourceIdResolver.resolveToPhysicalResourceId(bucket);
-		}
-		else {
-			return bucket;
-		}
+		return bucket;
 	}
 
 	@Override

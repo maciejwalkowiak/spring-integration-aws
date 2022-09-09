@@ -33,7 +33,7 @@ ext {
 	junitVersion = '5.8.2'
 	servletApiVersion = '5.0.0'
 	log4jVersion = '2.17.2'
-	springCloudAwsVersion = '2.4.2'
+	springCloudAwsVersion = '3.0.0-M2'
 	springIntegrationVersion = '6.0.0-M3'
 	kinesisClientVersion = '1.14.8'
 	kinesisProducerVersion = '0.14.12'
@@ -106,7 +106,9 @@ dependencies {
 	api 'io.awspring.cloud:spring-cloud-aws-core'
 	api 'com.fasterxml.jackson.core:jackson-databind'
 
-	optionalApi 'io.awspring.cloud:spring-cloud-aws-messaging'
+	optionalApi 'io.awspring.cloud:spring-cloud-aws-sns'
+	optionalApi 'io.awspring.cloud:spring-cloud-aws-sqs'
+	optionalApi 'io.awspring.cloud:spring-cloud-aws-s3'
 	optionalApi 'org.springframework.integration:spring-integration-file'
 	optionalApi 'org.springframework.integration:spring-integration-http'
 

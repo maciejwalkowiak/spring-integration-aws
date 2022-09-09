@@ -20,7 +20,8 @@ import java.nio.ByteBuffer;
 
 import org.springframework.messaging.MessageHeaders;
 
-import com.amazonaws.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
 /**
  * The {@link AbstractMessageAttributesHeaderMapper} implementation for the mapping from
@@ -37,13 +38,14 @@ public class SqsHeaderMapper extends AbstractMessageAttributesHeaderMapper<Messa
 
 	@Override
 	protected MessageAttributeValue buildMessageAttribute(String dataType, Object value) {
-		MessageAttributeValue messageAttributeValue = new MessageAttributeValue().withDataType(dataType);
+		MessageAttributeValue.Builder messageAttributeValue = MessageAttributeValue.builder().dataType(dataType);
 		if (value instanceof ByteBuffer) {
-			return messageAttributeValue.withBinaryValue((ByteBuffer) value);
+			messageAttributeValue.binaryValue(SdkBytes.fromByteBuffer((ByteBuffer) value));
 		}
 		else {
-			return messageAttributeValue.withStringValue(value.toString());
+			messageAttributeValue.binaryValue(SdkBytes.fromUtf8String(value.toString()));
 		}
+		return messageAttributeValue.build();
 	}
 
 }

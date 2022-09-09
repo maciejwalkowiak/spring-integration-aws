@@ -31,7 +31,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.MimeType;
 import org.springframework.util.NumberUtils;
 
-import io.awspring.cloud.messaging.core.MessageAttributeDataTypes;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 
 /**
  * Base {@link HeaderMapper} implementation for common logic in SQS and SNS around message
@@ -126,6 +126,40 @@ public abstract class AbstractMessageAttributesHeaderMapper<A> implements Header
 	@Override
 	public Map<String, Object> toHeaders(Map<String, A> source) {
 		throw new UnsupportedOperationException("The mapping from AWS Response Message is not supported");
+	}
+
+	/**
+	 * Helper class used for conversion between {@link MessageAttributeValue} and Java types.
+	 *
+	 * @author Alain Sahli
+	 * @since 1.0
+	 */
+	private static final class MessageAttributeDataTypes {
+
+		/**
+		 * Binary message attribute data type.
+		 */
+		public static final String BINARY = "Binary";
+
+		/**
+		 * Number message attribute data type.
+		 */
+		public static final String NUMBER = "Number";
+
+		/**
+		 * String message attribute data type.
+		 */
+		public static final String STRING = "String";
+
+		/**
+		 * String.Array message attribute data type.
+		 */
+		public static final String STRING_ARRAY = "String.Array";
+
+		private MessageAttributeDataTypes() {
+			// Avoid instantiation
+		}
+
 	}
 
 }

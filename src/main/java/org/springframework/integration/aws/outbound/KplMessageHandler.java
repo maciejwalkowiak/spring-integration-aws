@@ -499,4 +499,43 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		return completable;
 	}
 
+	protected <I extends AmazonWebServiceRequest, O> AsyncHandler<I, O> obtainAsyncHandler(final Message<?> message,
+			final AmazonWebServiceRequest request) {
+
+		return new AsyncHandler<I, O>() {
+
+			@Override
+			public void onError(Exception ex) {
+				if (getAsyncHandler() != null) {
+					getAsyncHandler().onError(ex);
+				}
+
+				if (getFailureChannel() != null) {
+					AbstractAwsMessageHandler.this.messagingTemplate.send(getFailureChannel(), getErrorMessageStrategy()
+							.buildErrorMessage(new AwsRequestFailureException(message, request, ex), null));
+				}
+			}
+
+			@Override
+			@SuppressWarnings("unchecked")
+			public void onSuccess(I request, O result) {
+				if (getAsyncHandler() != null) {
+					((AsyncHandler<I, O>) getAsyncHandler()).onSuccess(request, result);
+				}
+
+				if (getOutputChannel() != null) {
+					AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory()
+							.fromMessage(message);
+
+					additionalOnSuccessHeaders(messageBuilder, request, result);
+
+					messageBuilder.setHeaderIfAbsent(AwsHeaders.SERVICE_RESULT, result);
+
+					AbstractAwsMessageHandler.this.messagingTemplate.send(getOutputChannel(), messageBuilder.build());
+				}
+			}
+
+		};
+	}
+
 }

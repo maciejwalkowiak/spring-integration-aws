@@ -19,6 +19,7 @@ package org.springframework.integration.aws.outbound;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
+import java.util.function.BiConsumer;
 
 import org.springframework.expression.Expression;
 import org.springframework.expression.TypeLocator;
@@ -32,17 +33,15 @@ import org.springframework.integration.support.AbstractIntegrationMessageBuilder
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
 
-import com.amazonaws.AmazonWebServiceRequest;
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.sns.AmazonSNSAsync;
-import com.amazonaws.services.sns.model.MessageAttributeValue;
-import com.amazonaws.services.sns.model.PublishRequest;
-import com.amazonaws.services.sns.model.PublishResult;
-import io.awspring.cloud.core.env.ResourceIdResolver;
+import software.amazon.awssdk.awscore.AwsRequest;
+import software.amazon.awssdk.services.sns.SnsAsyncClient;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 /**
  * The {@link AbstractAwsMessageHandler} implementation to send SNS Notifications
- * ({@link AmazonSNSAsync#publishAsync(PublishRequest)}) to the provided {@code topicArn}
+ * ({@link SnsAsyncClient#publish(PublishRequest)}) to the provided {@code topicArn}
  * (or evaluated at runtime against {@link Message}).
  * <p>
  * The SNS Message subject can be evaluated as a result of {@link #subjectExpression}.
@@ -71,13 +70,13 @@ import io.awspring.cloud.core.env.ResourceIdResolver;
  * </ul>
  *
  * @author Artem Bilan
- * @see AmazonSNSAsync
+ * @see SnsAsyncClient
  * @see PublishRequest
  * @see SnsBodyBuilder
  */
 public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, MessageAttributeValue>> {
 
-	private final AmazonSNSAsync amazonSns;
+	private final SnsAsyncClient amazonSns;
 
 	private Expression topicArnExpression;
 
@@ -85,9 +84,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 
 	private Expression bodyExpression;
 
-	private ResourceIdResolver resourceIdResolver;
-
-	public SnsMessageHandler(AmazonSNSAsync amazonSns) {
+	public SnsMessageHandler(SnsAsyncClient amazonSns) {
 		Assert.notNull(amazonSns, "amazonSns must not be null.");
 		this.amazonSns = amazonSns;
 		doSetHeaderMapper(new SnsHeaderMapper());
@@ -127,15 +124,6 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 		this.bodyExpression = bodyExpression;
 	}
 
-	/**
-	 * Specify a {@link ResourceIdResolver} to resolve logical topic names to physical
-	 * resource ids.
-	 * @param resourceIdResolver the {@link ResourceIdResolver} to use.
-	 */
-	public void setResourceIdResolver(ResourceIdResolver resourceIdResolver) {
-		this.resourceIdResolver = resourceIdResolver;
-	}
-
 	@Override
 	protected void onInit() {
 		super.onInit();
@@ -160,16 +148,16 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 		}
 		else {
 			Assert.state(this.topicArnExpression != null, "'topicArn' or 'topicArnExpression' must be specified.");
-			publishRequest = new PublishRequest();
+			PublishRequest.Builder requestBuilder = PublishRequest.builder();
 			String topicArn = this.topicArnExpression.getValue(getEvaluationContext(), message, String.class);
-			if (this.resourceIdResolver != null) {
-				topicArn = this.resourceIdResolver.resolveToPhysicalResourceId(topicArn);
-			}
-			publishRequest.setTopicArn(topicArn);
+//			if (this.resourceIdResolver != null) {
+//				topicArn = this.resourceIdResolver.resolveToPhysicalResourceId(topicArn);
+//			}
+			requestBuilder.topicArn(topicArn);
 
 			if (this.subjectExpression != null) {
 				String subject = this.subjectExpression.getValue(getEvaluationContext(), message, String.class);
-				publishRequest.setSubject(subject);
+				requestBuilder.subject(subject);
 			}
 
 			Object snsMessage = message.getPayload();
@@ -179,47 +167,47 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 			}
 
 			if (snsMessage instanceof SnsBodyBuilder) {
-				publishRequest.withMessageStructure("json").setMessage(((SnsBodyBuilder) snsMessage).build());
+				requestBuilder.messageStructure("json").message(((SnsBodyBuilder) snsMessage).build());
 			}
 			else {
-				publishRequest.setMessage(getConversionService().convert(snsMessage, String.class));
+				requestBuilder.message(getConversionService().convert(snsMessage, String.class));
 			}
 
 			HeaderMapper<Map<String, MessageAttributeValue>> headerMapper = getHeaderMapper();
 			if (headerMapper != null) {
-				mapHeaders(message, publishRequest, headerMapper);
+				mapHeaders(message, requestBuilder, headerMapper);
 			}
 		}
 
-		AsyncHandler<PublishRequest, PublishResult> asyncHandler = obtainAsyncHandler(message, publishRequest);
-		return this.amazonSns.publishAsync(publishRequest, asyncHandler);
+		BiConsumer<PublishResponse, Throwable> asyncHandler = obtainAsyncHandler(message, publishRequest);
+		return this.amazonSns.publish(publishRequest).whenComplete(asyncHandler);
 
 	}
 
-	private void mapHeaders(Message<?> message, PublishRequest publishRequest,
+	private void mapHeaders(Message<?> message, PublishRequest.Builder publishRequest,
 			HeaderMapper<Map<String, MessageAttributeValue>> headerMapper) {
 
 		HashMap<String, MessageAttributeValue> messageAttributes = new HashMap<>();
 		headerMapper.fromHeaders(message.getHeaders(), messageAttributes);
 		if (!messageAttributes.isEmpty()) {
-			publishRequest.setMessageAttributes(messageAttributes);
+			publishRequest.messageAttributes(messageAttributes);
 		}
 	}
 
 	@Override
 	protected void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
-			AmazonWebServiceRequest request, Object result) {
+			AwsRequest request, Object result) {
 
 		if (request instanceof PublishRequest) {
 			PublishRequest publishRequest = (PublishRequest) request;
 
-			messageBuilder.setHeader(AwsHeaders.TOPIC, publishRequest.getTopicArn());
+			messageBuilder.setHeader(AwsHeaders.TOPIC, publishRequest.topicArn());
 		}
 
-		if (result instanceof PublishResult) {
-			PublishResult publishResult = (PublishResult) result;
+		if (result instanceof PublishResponse) {
+			PublishResponse publishResult = (PublishResponse) result;
 
-			messageBuilder.setHeader(AwsHeaders.MESSAGE_ID, publishResult.getMessageId());
+			messageBuilder.setHeader(AwsHeaders.MESSAGE_ID, publishResult.messageId());
 		}
 	}
 

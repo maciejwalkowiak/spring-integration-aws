@@ -55,7 +55,6 @@ import com.amazonaws.services.s3.transfer.internal.S3ProgressListener;
 import com.amazonaws.services.s3.transfer.internal.S3ProgressListenerChain;
 import com.amazonaws.util.Base64;
 import com.amazonaws.util.Md5Utils;
-import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
  * The {@link AbstractReplyProducingMessageHandler} implementation for the Amazon S3
@@ -131,8 +130,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	private S3ProgressListener s3ProgressListener;
 
 	private UploadMetadataProvider uploadMetadataProvider;
-
-	private ResourceIdResolver resourceIdResolver;
 
 	public S3MessageHandler(AmazonS3 amazonS3, String bucket) {
 		this(amazonS3, bucket, false);
@@ -249,15 +246,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	 */
 	public void setUploadMetadataProvider(UploadMetadataProvider uploadMetadataProvider) {
 		this.uploadMetadataProvider = uploadMetadataProvider;
-	}
-
-	/**
-	 * Specify a {@link ResourceIdResolver} to resolve logical bucket names to physical
-	 * resource ids.
-	 * @param resourceIdResolver the {@link ResourceIdResolver} to use.
-	 */
-	public void setResourceIdResolver(ResourceIdResolver resourceIdResolver) {
-		this.resourceIdResolver = resourceIdResolver;
 	}
 
 	@Override
@@ -515,10 +503,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					String.class);
 		}
 
-		if (this.resourceIdResolver != null) {
-			destinationBucketName = this.resourceIdResolver.resolveToPhysicalResourceId(destinationBucketName);
-		}
-
 		Assert.state(destinationBucketName != null,
 				() -> "The 'destinationBucketExpression' must not be null for 'copy' operation "
 						+ "and can't evaluate to null. Root object is: " + requestMessage);
@@ -548,10 +532,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 		}
 		Assert.state(bucketName != null, () -> "The 'bucketExpression' [" + this.bucketExpression.getExpressionString()
 				+ "] must not evaluate to null. Root object is: " + requestMessage);
-
-		if (this.resourceIdResolver != null) {
-			bucketName = this.resourceIdResolver.resolveToPhysicalResourceId(bucketName);
-		}
 
 		return bucketName;
 	}

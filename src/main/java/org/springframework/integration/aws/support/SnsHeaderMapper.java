@@ -18,7 +18,8 @@ package org.springframework.integration.aws.support;
 
 import java.nio.ByteBuffer;
 
-import com.amazonaws.services.sns.model.MessageAttributeValue;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 
 /**
  * The {@link AbstractMessageAttributesHeaderMapper} implementation for the mapping from
@@ -34,13 +35,14 @@ public class SnsHeaderMapper extends AbstractMessageAttributesHeaderMapper<Messa
 
 	@Override
 	protected MessageAttributeValue buildMessageAttribute(String dataType, Object value) {
-		MessageAttributeValue messageAttributeValue = new MessageAttributeValue().withDataType(dataType);
+		MessageAttributeValue.Builder messageAttributeValue = MessageAttributeValue.builder().dataType(dataType);
 		if (value instanceof ByteBuffer) {
-			return messageAttributeValue.withBinaryValue((ByteBuffer) value);
+			messageAttributeValue.binaryValue(SdkBytes.fromByteBuffer((ByteBuffer) value));
 		}
 		else {
-			return messageAttributeValue.withStringValue(value.toString());
+			messageAttributeValue.binaryValue(SdkBytes.fromUtf8String(value.toString()));
 		}
+		return messageAttributeValue.build();
 	}
 
 }

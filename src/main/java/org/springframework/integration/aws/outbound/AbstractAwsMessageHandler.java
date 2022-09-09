@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
@@ -40,6 +41,8 @@ import org.springframework.util.Assert;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
+import software.amazon.awssdk.awscore.AwsRequest;
+import software.amazon.awssdk.awscore.AwsResponse;
 
 /**
  * The base {@link AbstractMessageProducingHandler} for AWS services. Utilizes common
@@ -199,30 +202,16 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 		}
 	}
 
-	protected <I extends AmazonWebServiceRequest, O> AsyncHandler<I, O> obtainAsyncHandler(final Message<?> message,
-			final AmazonWebServiceRequest request) {
+	protected <I extends AwsResponse, O extends Throwable> BiConsumer<I, O> obtainAsyncHandler(final Message<?> message,
+			final AwsRequest request) {
 
-		return new AsyncHandler<I, O>() {
-
-			@Override
-			public void onError(Exception ex) {
-				if (getAsyncHandler() != null) {
-					getAsyncHandler().onError(ex);
-				}
-
+		return (result, ex) -> {
+			if (ex != null) {
 				if (getFailureChannel() != null) {
 					AbstractAwsMessageHandler.this.messagingTemplate.send(getFailureChannel(), getErrorMessageStrategy()
 							.buildErrorMessage(new AwsRequestFailureException(message, request, ex), null));
 				}
-			}
-
-			@Override
-			@SuppressWarnings("unchecked")
-			public void onSuccess(I request, O result) {
-				if (getAsyncHandler() != null) {
-					((AsyncHandler<I, O>) getAsyncHandler()).onSuccess(request, result);
-				}
-
+			} else {
 				if (getOutputChannel() != null) {
 					AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory()
 							.fromMessage(message);
@@ -234,13 +223,12 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 					AbstractAwsMessageHandler.this.messagingTemplate.send(getOutputChannel(), messageBuilder.build());
 				}
 			}
-
 		};
 	}
 
 	protected abstract Future<?> handleMessageToAws(Message<?> message);
 
 	protected abstract void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
-			AmazonWebServiceRequest request, Object result);
+			AwsRequest request, Object result);
 
 }

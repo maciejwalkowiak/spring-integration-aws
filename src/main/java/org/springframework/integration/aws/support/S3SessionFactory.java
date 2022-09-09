@@ -23,7 +23,6 @@ import org.springframework.util.Assert;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
  * An Amazon S3 specific {@link SessionFactory} implementation. Also this class implements
@@ -42,12 +41,8 @@ public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, Shared
 	}
 
 	public S3SessionFactory(AmazonS3 amazonS3) {
-		this(amazonS3, null);
-	}
-
-	public S3SessionFactory(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
-		this.s3Session = new S3Session(amazonS3, resourceIdResolver);
+		this.s3Session = new S3Session(amazonS3);
 	}
 
 	@Override
